@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Set name user and group
+user_name=quyenvkbn
+group_name=quyenvkbn
+
+# create dir if not exists
+mkdir -p /var/log/supervisord /var/run/supervisord /var/log/php-fpm
+
+# check add user and group, update permission
+if [[ "${CREATE_USER}" == true && $(grep -c "${USER_ID}:" /etc/passwd) -eq 0 ]]; then
+    addgroup -gid ${GROUP_ID} $group_name
+    adduser --disabled-password --gid ${GROUP_ID} --uid ${USER_ID} --no-create-home $user_name
+
+    chown -R ${USER_ID}:${GROUP_ID} /var/log/supervisord /var/run/supervisord /var/log/php-fpm /var/www/code/*/storage 
+fi
+
+# set user_process
+if [[ "${CREATE_USER}" == true ]]; then
+    user_process=$user_name
+else
+    user_process=root
+    php-fpm -R -D #cho phep chay voi permission root và chạy ở chế độ background
+fi
+
+#Set variable USER_PROCESS sẽ được sử dụng trong file config www.conf
+export USER_PROCESS=$user_process
+
+# Run supervisord by file config
+/usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf

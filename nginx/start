@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# Set name user and group
+user_name=quyenvkbn
+group_name=quyenvkbn
+
+# check add user and group, update permission
+if [[ "${CREATE_USER}" == true -a $(grep -c "${USER_ID}:" /etc/passwd) -eq 0 ]]; then
+    addgroup -g ${GROUP_ID} -S $group_name
+    adduser -u ${USER_ID} -D -S -G $group_name $user_name
+
+    touch /run/nginx.pid  && \
+    chown -R ${USER_ID}:${GROUP_ID} /var/cache/nginx /var/log/nginx /etc/nginx /run/nginx.pid
+fi
+
+# set user_process
+if [[ "${CREATE_USER}" == true ]]; then
+    user_process=$user_name
+else
+    user_process=root
+fi
+
+#Set variable USER_PROCESS sẽ được sử dụng trong file config nginx.conf
+export USER_PROCESS=$user_process
+
+# Tìm các variable trong file /etc/nginx/nginx.conf.template và replace với variable đang có 
+# VD trong file nginx.conf.template đang sử dụng "user $USER_PROCESS;" và USER_PROCESS bên trên set USER_PROCESS=quyenvkbn thì sẽ được replace thành "user quyenvkbn;"
+envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+
+# Run nginx
+nginx -g 'daemon off;'

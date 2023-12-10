@@ -1,0 +1,83 @@
+version: '3.5'
+networks: # Tạo network
+  app:
+    name: ${NETWORK_APP}
+    driver: ${NETWORKS_DRIVER}  # container cung mang ms giao tiep duoc voi nhau
+volumes: # Tạo volumn
+  nginx:
+    name: ${VOLUME_NGINX}
+    driver: ${VOLUMES_DRIVER}
+services:
+  nginx:
+    build: #Chứa các thông tin để build image
+      context: . #path
+      dockerfile: dockerfiles/nginx.dockerfile #file dockerfile
+    environment: # lấy thông tin trong env từ máy host set vào container
+      - 'CREATE_USER=${CREATE_USER}'
+      - 'USER_ID=${USER_ID}'
+      - 'GROUP_ID=${GROUP_ID}'
+    image: quyenvk/nginx-1.19.8-alpine:latest #image name
+    container_name: "nginx-1.19.8-alpine" #container name
+    ports: #Thiết lập ports chạy tại máy host và container
+      - '${NGINX_HOST_HTTP_PORT}:80'
+      - '${NGINX_HOST_HTTPS_PORT}:443'
+    volumes: # Thiết lập mount thư mục giứa máy host và container
+      - '${NGINX_SITE_PATH}:/etc/nginx/sites-enabled'
+      - '${NGINX_PATH_HOST}/nginx.conf:/etc/nginx/nginx.conf.template'
+      - '${APP_CODE_API_PATH_HOST}:${LARAVEL_PATH_CONTAINER}/${API_DIR}'
+      - '${LETSENCRYPT_PATH_HOST}:${LETSENCRYPT_PATH_CONTAINER}'
+      - nginx:/var/log/nginx #sử dụng network được tạo ở trên
+    networks:
+      - app #sử dụng network được tạo ở trên
+    depends_on: #nginx phụ thuộc vào service php và mysql do nginx mình có bao gồm cả code trong đó
+      - php #Service php
+      - mysql #Service mysql
+  php:
+    build:
+      context: .
+      dockerfile: dockerfiles/php.dockerfile
+    environment:
+      - 'CREATE_USER=${CREATE_USER}'
+      - 'USER_ID=${USER_ID}'
+      - 'GROUP_ID=${GROUP_ID}'
+      - 'API_PATH_CONTAINER=${LARAVEL_PATH_CONTAINER}/${API_DIR}'
+    image: quyenvk/php8.0-fpm:latest
+    container_name: "php8.0-fpm"
+    volumes:
+      - '${COMMAND_PATH_HOST}/api:/command/api'
+      - '${PHP_PATH_HOST}/bashrc:/root/.bashrc'
+      - '${PHP_PATH_HOST}/www.conf:/usr/local/etc/php-fpm.d/www.conf'
+      - '${PHP_PATH_HOST}/supervisord.conf:/etc/supervisor/supervisord.conf'
+      - '${APP_CODE_API_PATH_HOST}:${LARAVEL_PATH_CONTAINER}/${API_DIR}'
+    networks:
+      - app
+  mysql:
+    build:
+      context: .
+      dockerfile: dockerfiles/mysql.dockerfile
+    image: quyenvk/mysql-8.0:latest
+    container_name: "mysql-8.0"
+    environment:
+      - 'TZ=${TIMEZONE}'
+      - 'MYSQL_DATABASE=${MYSQL_DATABASE}'
+      - 'MYSQL_USER=${MYSQL_USER}'
+      - 'MYSQL_PASSWORD=${MYSQL_PASSWORD}'
+      - 'MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}'
+    volumes:
+      - '${DATA_PATH_HOST}/mysql_data:/var/lib/mysql'
+    ports:
+      - '${MYSQL_PORT}:3306'
+    networks:
+      - app
+  redis:
+    build:
+      context: .
+      dockerfile: dockerfiles/redis.dockerfile
+    image: quyenvk/redis:latest
+    container_name: "redis-latest"
+    volumes:
+      - ${DATA_PATH_HOST}/redis:/data
+    ports:
+      - "${REDIS_PORT}:6379"
+    networks:
+      - app

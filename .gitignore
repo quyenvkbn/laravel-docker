@@ -1,0 +1,9 @@
+# local env files
+.env
+code/api/vendor
+code/api/vendor/*
+
+# Editor directories and files
+.idea
+.vscode
+

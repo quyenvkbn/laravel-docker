@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Set name user
+user_name=quyenvkbn
+
+# Set user_process
+if "${CREATE_USER}" == true && getent passwd ${USER_ID} > /dev/null; then
+    user_process=$user_name
+else
+    user_process=root
+fi
+
+# Change permission dir
+if "${CREATE_USER}" == true && getent passwd ${USER_ID} > /dev/null && [ -d "${API_PATH_CONTAINER}/vendor" ]; then
+    chown -R ${USER_ID}:${GROUP_ID} $API_PATH_CONTAINER/vendor
+fi
+
+# Change permission file
+if "${CREATE_USER}" == true && getent passwd ${USER_ID} > /dev/null && [ -f "${API_PATH_CONTAINER}/composer.lock" ]; then
+    chown -R ${USER_ID}:${GROUP_ID} $API_PATH_CONTAINER/composer.lock
+fi
+
+cd $API_PATH_CONTAINER
+su -c 'composer install --prefer-dist --no-interaction --optimize-autoloader --no-dev' $user_process
+su -c 'php artisan config:cache' $user_process
+su -c 'php artisan config:clear' $user_process
+su -c 'php artisan key:generate' $user_process
+su -c 'php artisan migrate' $user_process
+# cache Optimizing ...
